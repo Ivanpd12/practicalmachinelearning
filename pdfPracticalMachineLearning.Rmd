@@ -1,0 +1,114 @@
+---
+title: "Practical Machine Learning - Course Project"
+author: "Ivan Pisa Dacosta"
+output: html_document
+---
+#Introduction
+
+Nowadays people are using new devices as the Nike Fuel Band according to monitorize the activity that they do. With these devices we can monitorize the time of the activities but we cannot control if the actvity is done well or not. So, in this report we are going to use data from 6 volunteer that are going to do 5 activities correctly and another 5 incorrectly. 
+So, with these data we are going to use machine learning to predict the manner of the activity done.
+
+#Loading the packets and reading the data
+
+In this section we have the code which is used to load all the packets that we are going to use to use machine learning techniques. With these packets we will be able to create the model and do the prediction
+```{r, echo = FALSE}
+options(warn=-1)
+```
+
+```{r}
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+library(rattle)
+library(corrplot)
+```
+
+Once we have the packets loaded, we are going to load the data. In this case, the data is separeted in two sets, the testing and the training set. The file where the data has been downloaded is the working directory of R 
+
+```{r}
+testing<-read.csv("pml-testing.csv")
+training<-read.csv("pml-training.csv")
+dim(training)
+dim(testing)
+```
+
+As we can see, the training set is formed by 160 variables of 19622 observations and the testing set is formed by 160 variables of 20 observations
+
+#Cleaning the data
+
+Now we are going to clean the data a little bit. We are going to take the value which has sense in this project. So, we are going to take the data related with the accelerometers.
+
+```{r}
+training<-training[,colSums(is.na(training))==0]
+testing<-testing[,colSums(is.na(testing))==0]
+remdata<-grepl("^X|timestamp|window", names(training))
+remdata2<-grepl("^X|timestamp|window", names(testing))
+clas<-training$classe
+training<-training[,!remdata]
+trainClean<-training[,sapply(training,is.numeric)]
+trainClean$classe<-clas
+testing<-testing[,!remdata2]
+testClean<-testing[,sapply(testing,is.numeric)]
+```
+As a result of doing this cleaning, the sets we are going to use are the testClean and the trainClean sets where the trainClean is a set with 53 variables and 19622 observations and the testClean is a set of 53 variables of 20 observations.
+
+
+#Creating the model and Cross Validation
+
+In this section we are going to create the model where we will focus the machine larning techniques. In this case, we are going to use the Random Forest machine learning technique due to the fact that is a method with a big accuracy which is a really important characteristhic of any model. As we can see in the following code, we are going to set a 6 fold cross validation in accordance to have a good model.
+
+```{r}
+set.seed(23514)
+inTrain<-createDataPartition(trainClean$classe, p=0.6, list=FALSE)
+trainingData<-trainClean[inTrain,]
+testingData<-trainClean[-inTrain,]
+
+rfcontrol<-trainControl(method="cv", number=6)
+modeled<-train(classe ~ ., method="rf", trControl = rfcontrol, ntree = 300, data = trainingData)
+```
+
+One of the problems of the random forest method is that this method is slower than the other methods. Also, the random forest method is a complicated method to be undestand due to the fact that what the method do is an average of some decision trees. In this case, as it is said we are taking different decision trees and we work with them doing the average and obtaining a final decision tree. 
+So, if we see the process of the Random Forest method is the same process of a cross validation of K iterations. So, as a conclusion, with the Random Forest method we are doing our cross validation.
+
+#Making the prediction
+
+In this section we are going to make the prediction with the model. So, the code that we need to use is the following one
+```{r}
+predictionmodel<-predict(modeled, testingData)
+confusionMatrix(testingData$classe, predictionmodel)
+```
+
+Also, we can see the confusion matrix were we can denote that the accuracy is about 0.989 or 98.9% which is a big accuracy. The expected out of sample error is the same as the opposite of the accuracy, so as it is shown in the confusion matrix, the value of the out of sample error is 0.011 or 1.1%.
+
+Also we show the decision tree that we obtained and the accuracy of the Random Forest method
+
+```{r, echo = FALSE}
+tree<-rpart(classe ~ ., data = trainingData, method = "class" )
+prp(tree)
+plot(modeled, log = "y", lwd = 2, main = "Random forest accuracy", xlab = "Predictors", 
+    ylab = "Accuracy")
+```
+
+
+#Test Data Set
+
+In accordance to the project, our model has to work with the Test Data Set. In this case we have used the following code in accordance to find the output of each data set.
+
+```
+answers <- TDataSet
+answers
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+pml_write_files(answers)
+
+```
+
+```{r,echo=FALSE}
+options(warn=0)
+```
